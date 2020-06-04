@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Hello World!</title>
+    <style>
+        #hello,#str-length{
+            color: #ff0000;
+        }
+        #plus>input{
+            width: 150px;
+        }
+    </style>
+</head>
+
+<body>
+<div id='plus'>
+    <button type="button" onclick="plus()">打开串口</button>
+    <br/>
+    <button type="button" onclick="close1()">关闭串口</button>
+    <button type="button" onclick="control1()">走卡位</button>
+    <button type="button" onclick="control2()">指示灯</button>
+    <button type="button" onclick="control()">进卡控制</button>
+    <span>进卡控制:</span><span id="control"></span>
+    <br/>
+    <button type="button" onclick="read()">读卡</button>
+    <span>MC_ReadTrack:</span><p id="read1"></p> <p id="read2"></p>
+    <p id="read3"></p><p id="read4"></p>
+    <p>状态</p><p id="read5"></p>
+    <br/>
+    <button type="button" onclick="reset()">退出</button>
+    <p>CRT310_Reset:</p>
+    <span id="reset"></span>
+</div>
+
+
+<!--  We are using node-->
+<!--  <script>document.write(process.versions.node)</script>, Chrome-->
+<!--  <script>document.write(process.versions.chrome)</script>, and Electron-->
+<!--  <script>document.write(process.versions.electron)</script>.-->
+
+<script>
+    let Dll
+    let Hdle = 0
+    // Call *.dll with ffi
+    let ffi = require('ffi');
+    console.log(ffi)
+    const ref = require('ref')
+    const refArray = require('ref-array');
+    var byteArray = refArray(ref.types.byte)
+    window.onload = function () {
+        try {
+            // var intPointer = ref.refType('int')
+            // intPointer = 0
+            // console.log(intPointer)
+            Dll = ffi.Library("C:/CRT_310.dll", {
+                'CommOpen': ['int',['string']], //  ['int',['int']]第一个int是出参类型，最后一个int所在的数组放的是入参的类型
+                'CommOpenWithBaut': ['int',['string','int']],  // 设置串口
+                'CRT310_CardSetting': ['int',['UInt32','byte','byte']],   //(Hdle, 0x3,0x01)  //开关方式
+                'CRT310_MovePosition': ['int',['UInt32','byte']],    //(Hdle, 0x01)  走卡位
+                'CRT310_LEDSet': ['int',['UInt32','byte']],   //(HANDLE ComHandle)
+                'CommClose': ['int',['UInt32']],
+                'MC_ReadTrack':['int',['UInt32','byte','byte','int *', byteArray]],   //读卡
+                'CRT310_Reset': ['int',['UInt32','byte']]    //退卡
+                // 'CRT_R_SetComm':[],
+            })
+            console.log('fii.Library result:', Dll);
+            // Call C++ function Hello
+
+        } catch (error) {
+            console.error('ffi.Library', error);
+        }
+    }
+    function plus() {
+        // let a = Dll.CommOpen('Com1');
+        // let b =  Dll.CommOpen('Com2');
+        // let c =  Dll.CommOpen('Com3');
+        // let d =  Dll.CommOpen('Com4');
+        // console.log(a,b,c,d);
+        // Hdle  =  Dll.CommOpen('Com5');
+        Hdle = Dll.CommOpen('Com5')
+        console.log(Hdle)
+
+    }
+    function pluss() {
+        // let a = Dll.CommOpenWithBaut('Com1','9600');
+        // let b =  Dll.CommOpenWithBaut('Com2','9600');
+        // let c =  Dll.CommOpenWithBaut('Com3','9600');
+        // let d =  Dll.CommOpenWithBaut('Com4','9600');
+        // console.log(a,b,c,d);
+        // const commOpenWithBaut =  Dll.CommOpenWithBaut('COM5','9600');
+        // console.log(commOpenWithBaut)
+        Hdle  =  Dll.CommOpen('Com5');
+        console.log(Hdle)
+        let op = document.getElementById('port')
+        op.innerHTML = Hdle
+        console.log(Hdle)
+        const cardSetting =  Dll.CRT310_CardSetting(Hdle,' 0x3','0x01');
+        console.log(cardSetting)
+        let oSpan = document.getElementById('read')
+        const mcReadTrack =  Dll.MC_ReadTrack(Hdle,'0x30','0x37',0,'[]');
+        oSpan.innerHTML = mcReadTrack
+        console.log(mcReadTrack)
+    }
+    function close1(){
+        const cardSetting = Dll.CommClose(Hdle);
+        console.log(cardSetting)
+    }
+    function control1(){
+        console.log(Hdle)
+        const cardSetting =  Dll.CRT310_MovePosition(Hdle, 0x01 );
+        console.log(' 走卡位' + cardSetting)
+    }
+    function control() {
+        // Hdle, 0x3,0x01
+        console.log(Hdle)
+        console.log(Hdle.toString())
+        const cardSetting =  Dll.CRT310_CardSetting(Hdle,0x3,0x01);
+        let oSpan = document.getElementById('control')
+        oSpan.innerHTML = cardSetting
+        console.log(cardSetting)
+    }
+    function control2() {
+        console.log(Hdle)
+        console.log(Hdle.toString())
+        const cardSetting =  Dll.CRT310_LEDSet(Hdle,0x0);
+        console.log('指示灯'+ cardSetting)
+    }
+    // process.on('read', function (err) {
+    //     electronLog.error(err.stack);
+    // });
+    function read() {
+        var _TrackData = new byteArray(500)
+        let _TrackDataLen = ref.alloc('int')
+        let index = _TrackDataLen.deref()
+        let oRead1 = document.getElementById('read1')
+        oRead1.innerHTML =  _TrackData
+        let oRead2 = document.getElementById('read2')
+        oRead2.innerHTML =  _TrackDataLen
+        console.log(_TrackData)
+        console.log(_TrackDataLen)
+        const i = Dll.MC_ReadTrack(Hdle,0x30,0x37, _TrackDataLen,_TrackData);
+        console.log(_TrackDataLen)
+        console.log(_TrackDataLen[0])
+        let oRead3 = document.getElementById('read3')
+        oRead3.innerHTML =  i
+        if (i == 0){
+            let n
+            let weizhi1 = 0;
+            let weizhi2 = 0;
+            let weizhi3 = 0;
+            let Tra1Buf = "";
+            let Tra2Buf = "";
+            let Tra3Buf = "";
+            for (n = 0; n <_TrackDataLen[0]; n++)
+            {
+                if (_TrackData[n] == 31)
+                {
+                    weizhi1 = n;
+                    console.log( weizhi1)
+                    break;
+                }
+            }
+            for (n = weizhi1 + 1; n < _TrackDataLen[0]; n++)
+            {
+                if (_TrackData[n] == 31)
+                {
+                    weizhi2 = n;
+                    console.log(weizhi2)
+                    break;
+                }
+            }
+            for (n = weizhi2 + 1; n < _TrackDataLen[0]; n++)
+            {
+                if (_TrackData[n] == 31)
+                {
+                    weizhi3 = n;
+                    console.log(weizhi3)
+                    break;
+                }
+            }
+            oRead1.innerHTML =  _TrackDataLen
+            oRead2.innerHTML =  _TrackData
+            console.log(_TrackData[weizhi1 + 1])
+            switch (_TrackData[weizhi1 + 1])
+            {
+                case 89:
+                    for (n = weizhi1 + 2; n < weizhi2 ; n++)
+                    {
+                        Tra2Buf += _TrackData[n].toString();
+                        // Tra1Buf += (char)_TrackData[n];
+                    }
+                    console.log(Tra2Buf)
+                    // Track1DataTxt.Text = Tra1Buf;
+                    break;
+                case 78:
+                    // Track1DataTxt.Text = "Read/Parity Error" + Environment.NewLine;
+                    console.log(_TrackData[weizhi1 + 2])
+                    switch (_TrackData[weizhi1 + 2])
+                    {
+                        case 225:
+                            console.log("No start bits (STX)");
+                            break;
+                        case 226:
+                            console.log("No stop bits (ETX)");
+                            // Track1DataTxt.Text = Track1DataTxt.Text + "No stop bits (ETX)";
+                            break;
+                        case 227:
+                            console.log("Byte Parity Error(Parity))");
+                            // Track1DataTxt.Text = Track1DataTxt.Text + "Byte Parity Error(Parity))";
+                            break;
+                        case 228:
+                            console.log("Parity Bit Error(LRC)");
+                            // Track1DataTxt.Text = Track1DataTxt.Text + "Parity Bit Error(LRC)";
+                            break;
+                        case 229:
+                            console.log("Card Track Data is Blank");
+                            break;
+                    }
+                    break;
+                case 69:
+                    console.log("No Read for this Track");
+                    // Track1DataTxt.Text = "No Read for this Track" + Environment.NewLine + "Card Track Data is 0xE0";
+                    break;
+                case 0:
+                    console.log("No Read Operation");
+                    // Track1DataTxt.Text = "No Read Operation" + Environment.NewLine + "Card Track Data is 0x00";
+                    break;
+            }
+            switch (_TrackData[weizhi2 + 1])
+            {
+                case 89:
+                    for (n = weizhi2 + 2; n < weizhi3 ; n++)
+                    {
+                        // Tra1Buf += _TrackData[n].toString();
+                        Tra1Buf += String.fromCharCode(_TrackData[n])
+                        // Tra2Buf += (char)_TrackData[n];
+                    }
+                    console.log(Tra1Buf)
+                    break;
+                case 78:
+                    console.log(_TrackData[weizhi2 + 2])
+                    // Track2DataTxt.Text = "Read/Parity Error" + Environment.NewLine;
+                    switch (_TrackData[weizhi2 + 2])
+                    {
+                        case 225:
+                            console.log(_TrackData[weizhi2 + 2])
+                            break;
+                    }
+                    break;
+                case 69:
+                    console.log("No Read for this Track");
+                    // Track1DataTxt.Text = "No Read for this Track" + Environment.NewLine + "Card Track Data is 0xE0";
+                    break;
+                case 0:
+                    console.log("No Read Operation");
+                    // Track2DataTxt.Text = "No Read Operation" + Environment.NewLine + "Card Track Data is 0x00";
+                    break;
+            }
+            switch (_TrackData[weizhi3 + 1])
+            {
+                case 89:
+                    for (n = weizhi3 + 2; n < _TrackDataLen ; n++)
+                    {
+                        Tra3Buf += _TrackData[n].toString();
+                        // Tra3Buf += (char)_TrackData[n];
+                    }
+                    console.log(Tra3Buf)
+                    break;
+                case 78:
+                    console.log(_TrackData[weizhi3 + 2])
+                    // Track3DataTxt.Text = "Read/Parity Error" + Environment.NewLine;
+                    switch (_TrackData[weizhi3 + 2])
+                    {
+                        case 225:
+                            // Track3DataTxt.Text = Track3DataTxt.Text + "No start bits (STX)";
+                            break;
+                    }
+                    break;
+                case 69:
+                    console.log("No Read for this Track");
+                    // Track1DataTxt.Text = "No Read for this Track" + Environment.NewLine + "Card Track Data is 0xE0";
+                    break;
+                case 0:
+                    console.log("No Read Operation");
+                    // Track3DataTxt.Text = "No Read Operation" + Environment.NewLine + "Card Track Data is 0x00";
+                    break;
+            }
+        } else {
+            let oRead5 = document.getElementById('read5')
+            oRead5.innerHTML = i
+        }
+
+    }
+
+    function reset() {
+        const commOpenWithBaut =  Dll.CRT310_Reset(Hdle,0x01);
+        console.log(commOpenWithBaut)
+        let op = document.getElementById('reset')
+        op.innerHTML = commOpenWithBaut
+    }
+    function strlen(el) {
+        // Call C++ function StrLength
+        document.getElementById('str-length').innerHTML =  Dll.StrLength(el.value);
+    }
+
+</script>
+</body>
+
+</html>
